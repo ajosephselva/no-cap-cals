@@ -64,7 +64,7 @@ export function ScanClient() {
     return () => clearInterval(id);
   }, [phase]);
 
-  const live = useMemo(() => (items.length ? totals(items, estimate?.label_detected) : null), [items, estimate]);
+  const live = useMemo(() => (estimate ? totals(items, estimate.label_detected) : null), [items, estimate]);
 
   function applyResponse(data: ScanResponse) {
     if (data.error) {
@@ -366,6 +366,14 @@ export function ScanClient() {
 
         <div className="flex flex-col gap-2">
           <p className="text-xs font-semibold uppercase tracking-widest text-black/40">Items · tap grams to adjust</p>
+          {items.length === 0 && (
+            <div className="rounded-xl border border-dashed border-black/20 px-4 py-6 text-center text-sm text-black/60">
+              You removed every item, so there&apos;s nothing to log.{" "}
+              <button onClick={() => setItems(estimate.items)} className="font-medium underline">
+                Restore items
+              </button>
+            </div>
+          )}
           {items.map((it, i) => (
             <div key={`${it.name}-${i}`} className="rounded-xl bg-white px-4 py-3">
               <div className="flex items-center justify-between gap-3">

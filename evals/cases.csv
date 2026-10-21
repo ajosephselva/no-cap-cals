@@ -1,0 +1,2 @@
+case_id,filename,description,true_kcal,category,cooking_notes,expected
+example_01,chicken-curry-recipe.jpg,,950,mixed,"ate the whole bowl; moderate oil; skin eaten; no cream",normal
