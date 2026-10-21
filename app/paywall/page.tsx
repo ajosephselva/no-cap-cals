@@ -3,6 +3,7 @@ import { getUser } from "@/lib/supabase/server";
 import { getAccess } from "@/lib/access";
 import { PLANS, type PlanKey } from "@/lib/stripe";
 import { startCheckout } from "./actions";
+import { logout } from "../login/actions";
 
 export default async function PaywallPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const user = await getUser();
@@ -53,6 +54,9 @@ export default async function PaywallPage({ searchParams }: { searchParams: Prom
 
       {error && <p className="mt-4 text-sm text-red-600">Checkout couldn&apos;t start. Try again in a moment.</p>}
       <p className="mt-6 text-center text-xs text-black/40">Test mode: use card 4242 4242 4242 4242, any future date, any CVC.</p>
+      <form action={logout} className="mt-4 text-center">
+        <button className="text-xs text-black/40 underline">Signed in as {user.email}. Log out</button>
+      </form>
     </main>
   );
 }
