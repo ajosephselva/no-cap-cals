@@ -62,6 +62,7 @@ async function main() {
   async function simulateAnswer(question: { text: string; options: { label: string }[] }, notes: string) {
     const r = await simulator.responses.create({
       model: SIM_MODEL,
+      store: false,
       instructions: "You are a user answering a food app's question truthfully using only your notes. Reply with exactly one option label from the list. If the notes don't cover it, reply with the option that says Not sure.",
       input: `Notes about my meal: ${notes || "(none)"}\nQuestion: ${question.text}\nOptions:\n${question.options.map((o) => `- ${o.label}`).join("\n")}`,
     });

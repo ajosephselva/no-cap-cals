@@ -41,6 +41,7 @@ async function callModel(input: TurnInput, repairNote?: string): Promise<unknown
       instructions: SYSTEM_PROMPT,
       input: [{ role: "user", content }],
       reasoning: { effort: REASONING },
+      store: false,
       text: { format: { type: "json_schema", name: "agent_turn", strict: true, schema: AGENT_TURN_JSON_SCHEMA } },
     });
     return JSON.parse(response.output_text);
