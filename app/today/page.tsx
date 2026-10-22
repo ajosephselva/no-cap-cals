@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getUser, createClient } from "@/lib/supabase/server";
 import { getAccess } from "@/lib/access";
-import { safeTimeZone, startOfToday } from "@/lib/time";
+import { safeTimeZone, dayKey, dayLabel, isDayKey, shiftDay, startOfDay } from "@/lib/time";
 import { combineRanges } from "@/lib/ai/estimate";
 import { logout } from "../login/actions";
 import { deleteMeal } from "../scan/actions";
@@ -31,13 +31,13 @@ function Ring({ fraction }: { fraction: number }) {
   );
 }
 
-export default async function TodayPage({ searchParams }: { searchParams: Promise<{ checkout?: string }> }) {
+export default async function TodayPage({ searchParams }: { searchParams: Promise<{ checkout?: string; day?: string }> }) {
   const user = await getUser();
   if (!user) redirect("/login");
   const { profile, subscription, hasAccess } = await getAccess(user.id);
   if (!profile) redirect("/onboarding");
 
-  const { checkout } = await searchParams;
+  const { checkout, day: dayParam } = await searchParams;
   if (!hasAccess) {
     if (checkout === "success") return <ActivationPoller />;
     redirect("/paywall");
@@ -45,11 +45,19 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
 
   const tzCookie = (await cookies()).get("tz")?.value;
   const tz = safeTimeZone(tzCookie);
+  const todayKey = dayKey(tz);
+  const day = isDayKey(dayParam) && dayParam < todayKey ? dayParam : todayKey;
+  const isToday = day === todayKey;
+  const label = dayLabel(day, todayKey);
+  const when = isToday ? "today" : label === "Yesterday" ? "yesterday" : "that day";
+  const dayHref = (key: string) => (key === todayKey ? "/today" : `/today?day=${key}`);
+
   const supabase = await createClient();
   const { data: meals } = await supabase
     .from("meals")
     .select("id, name, eaten_at, kcal_low, kcal_high, protein_g, carbs_g, fat_g")
-    .gte("eaten_at", startOfToday(tz).toISOString())
+    .gte("eaten_at", startOfDay(tz, day).toISOString())
+    .lt("eaten_at", startOfDay(tz, shiftDay(day, 1)).toISOString())
     .order("eaten_at", { ascending: false });
 
   const list = meals ?? [];
@@ -75,6 +83,20 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
       </header>
       {trialEnds && <p className="mt-4 rounded-full bg-lime-300 px-4 py-1 text-center text-sm">Free trial until {trialEnds}</p>}
 
+      <nav className="mt-5 flex items-center justify-between">
+        <Link href={dayHref(shiftDay(day, -1))} aria-label="Previous day" className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-lg hover:ring-1 hover:ring-black/10">
+          ‹
+        </Link>
+        <span className="font-semibold">{label}</span>
+        {isToday ? (
+          <span className="h-9 w-9" />
+        ) : (
+          <Link href={dayHref(shiftDay(day, 1))} aria-label="Next day" className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-lg hover:ring-1 hover:ring-black/10">
+            ›
+          </Link>
+        )}
+      </nav>
+
       <section className="mt-6 flex flex-col items-center">
         <div className="relative">
           <Ring fraction={target ? mid / target : 0} />
@@ -86,10 +108,10 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
         <p className="mt-3 text-sm text-black/60 tabular-nums">
           {list.length ? (
             <>
-              likely <span className="font-semibold text-black">{low.toLocaleString()}–{high.toLocaleString()}</span> cal today
+              likely <span className="font-semibold text-black">{low.toLocaleString()}–{high.toLocaleString()}</span> cal {when}
             </>
           ) : (
-            "Nothing logged yet today"
+            `Nothing logged ${when}`
           )}
         </p>
         <div className="mt-4 w-full">
@@ -108,18 +130,24 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
         </div>
       </section>
 
-      <Link href="/scan" className="mt-6 rounded-xl bg-black py-4 text-center text-lg font-semibold text-lime-300">
-        + Scan a meal
-      </Link>
+      {isToday ? (
+        <Link href="/scan" className="mt-6 rounded-xl bg-black py-4 text-center text-lg font-semibold text-lime-300">
+          + Scan a meal
+        </Link>
+      ) : (
+        <Link href="/today" className="mt-6 rounded-xl bg-white py-4 text-center text-lg font-semibold hover:ring-1 hover:ring-black/10">
+          Back to today
+        </Link>
+      )}
 
       <section className="mt-8">
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-black/40">Today&apos;s meals</h2>
+        <h2 className="text-xs font-semibold uppercase tracking-widest text-black/40">{isToday ? "Today\u2019s meals" : `Meals · ${label}`}</h2>
         {list.length === 0 ? (
-          <p className="mt-3 text-sm text-black/50">Nothing logged yet. Snap your next meal.</p>
+          <p className="mt-3 text-sm text-black/50">{isToday ? "Nothing logged yet. Snap your next meal." : `No meals logged ${when}.`}</p>
         ) : (
           <ul className="mt-3 flex flex-col gap-2">
             {list.map((m) => (
-              <li key={m.id} className="flex items-center justify-between rounded-xl bg-white px-4 py-3 hover:ring-1 hover:ring-black/10">
+              <li key={m.id} className="flex items-center justify-between gap-3 rounded-xl bg-white px-4 py-3 hover:ring-1 hover:ring-black/10">
                 <Link href={`/meals/${m.id}`} className="min-w-0 flex-1">
                   <p className="truncate font-medium">{m.name}</p>
                   <p className="text-xs text-black/50">
@@ -127,12 +155,13 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
                     {Math.round(Number(m.protein_g))}g protein · tap for details
                   </p>
                 </Link>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm tabular-nums">
-                    {m.kcal_low}–{m.kcal_high}
+                <div className="flex shrink-0 items-center gap-3">
+                  <span className="whitespace-nowrap text-sm tabular-nums">
+                    {m.kcal_low.toLocaleString()}–{m.kcal_high.toLocaleString()} <span className="text-black/50">cal</span>
                   </span>
                   <form action={deleteMeal}>
                     <input type="hidden" name="id" value={m.id} />
+                    <input type="hidden" name="back" value={dayHref(day)} />
                     <button aria-label={`Delete ${m.name}`} className="text-black/30 hover:text-black">
                       ✕
                     </button>

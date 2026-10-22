@@ -22,7 +22,7 @@ function useAnimatedNumber(target: number) {
   return value;
 }
 
-export type Step = { label: string; low: number; high: number };
+export type Step = { label: string; low: number; high: number; question?: string };
 
 export function EstimateHeader({ low, high, scaleMax }: { low: number; high: number; scaleMax: number }) {
   const best = Math.round((low + high) / 2 / 10) * 10;
@@ -65,7 +65,8 @@ export function Trail({ steps, scaleMax }: { steps: Step[]; scaleMax: number }) 
       <ul className="mt-3 flex flex-col gap-3">
         {steps.map((s, i) => (
           <li key={i}>
-            <div className="flex justify-between text-sm">
+            {s.question && <p className="text-xs text-black/40">{s.question}</p>}
+            <div className="flex justify-between gap-3 text-sm">
               <span className={i === steps.length - 1 ? "font-semibold" : "text-black/60"}>{s.label}</span>
               <span className="tabular-nums text-black/60">
                 {s.low.toLocaleString()}–{s.high.toLocaleString()}

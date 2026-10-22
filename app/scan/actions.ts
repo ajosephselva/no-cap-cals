@@ -70,5 +70,6 @@ export async function deleteMeal(formData: FormData) {
   const id = String(formData.get("id"));
   const supabase = await createClient();
   await supabase.from("meals").delete().eq("id", id);
-  redirect("/today");
+  const back = String(formData.get("back") ?? "");
+  redirect(/^\/today(\?day=\d{4}-\d{2}-\d{2})?$/.test(back) ? back : "/today");
 }

@@ -55,6 +55,7 @@ export function ScanClient() {
   const [copied, setCopied] = useState(false);
   const [steps, setSteps] = useState<Step[]>([]);
   const pendingLabel = useRef("From your photo");
+  const pendingQuestion = useRef("");
   const [saving, startSaving] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -87,7 +88,12 @@ export function ScanClient() {
       return;
     }
     const est = data.estimate;
-    if (pendingLabel.current) setSteps((prev) => [...prev, { label: pendingLabel.current, low: est.kcal_low, high: est.kcal_high }]);
+    if (pendingLabel.current) {
+      const step: Step = { label: pendingLabel.current, low: est.kcal_low, high: est.kcal_high };
+      if (pendingQuestion.current) step.question = pendingQuestion.current;
+      setSteps((prev) => [...prev, step]);
+    }
+    pendingQuestion.current = "";
     setSessionId(data.sessionId);
     setEstimate(data.estimate);
     setItems(data.estimate.items);
@@ -151,7 +157,8 @@ export function ScanClient() {
 
   function answer(label: string) {
     if (!sessionId) return;
-    pendingLabel.current = label === "Not sure" ? "Not sure" : label;
+    pendingLabel.current = label;
+    pendingQuestion.current = question?.text ?? "";
     post({ action: "answer", sessionId, answer: label, image: image ?? undefined });
   }
 
